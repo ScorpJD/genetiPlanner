@@ -4,74 +4,82 @@ import random
 
 class Robot:
 	"""docstring for Robot"""
-	def __init__(self, state = (0,0), target = (7,7)):
-		self.arg = arg
+	def __init__(self, state = (0,0), target = (7,7), flow_field):
 		self.path = []
 		self.state = state
 		self.target = target
+		self.flow_field = flow_field
 
-	def travel(self, cur_gen, environment, steps):
-	for individual in cur_gen:
+	def travel(self, environment, steps):
 		for step_index in range(steps):
-			cur_coordinates = (individual.state[0], individual.state[1])
+			cur_coordinates = (self.state[0], self.state[1])
 			if(cur_coordinates[0] >= len(environment) or cur_coordinates[1] >= len(environment[0].T) or cur_coordinates[0] < 0 or cur_coordinates[1] < 0):
 				# print "EXITTING GRID at " + str(cur_coordinates) #+ str(len(environment)) + "," + str(len(environment[0].T))
 				break
-			(individual.path).append(cur_coordinates)
-			motion_prim = individual.genes[cur_coordinates]
+			(self.path).append(cur_coordinates)
+			motion_prim = self.flow_field[cur_coordinates]
 			# print individual.state
 			# print motion_prim
 			
 			if(motion_prim == 'R'):
-				individual.state = tuple(map(sum, zip(individual.state, (0,1))))
+				self.state = tuple(map(sum, zip(self.state, (0,1))))
 			elif(motion_prim == 'U'):
-				individual.state = tuple(map(sum, zip(individual.state, (-1,0))))
+				self.state = tuple(map(sum, zip(self.state, (-1,0))))
 			elif(motion_prim == 'L'):
-				individual.state = tuple(map(sum, zip(individual.state, (0,-1))))
+				self.state = tuple(map(sum, zip(self.state, (0,-1))))
 			elif(motion_prim == 'D'):
-				individual.state = tuple(map(sum, zip(individual.state, (1,0))))
+				self.state = tuple(map(sum, zip(self.state, (1,0))))
 			elif(motion_prim == 'X'):
 				break
 
 
 class Individual():
-	def __init__(self, genes):
-		self.genes = genes
+	def __init__(self, robots):
 		self.fitness = 0
+		self.robots = robots
 		
 
-def smart_initialise(environment, pop_size):
+def smart_initialise(environment, pop_size, num_robots):
+	robot_start_locations = [(0,0)]
+	robot_target_locations = [(7,7)]
 	cur_gen = []
-	while len(cur_gen) <(pop_size):
-		initial_genes = np.array(np.random.choice(['0'], size = (8,8), p = [1]))
-		for i in range(len(environment)):
-			for j in range(len(environment[0].T)):
-				possible_vals = ['U', 'D', 'L', 'R']
-				if(i == 0 or environment[i-1].T[j] == 1 or initial_genes[i-1][j] == 'D'):
-					possible_vals.remove('U')
-				if(i == len(environment)-1 or environment[i+1].T[j] == 1):
-					possible_vals.remove('D')
-				if(j == 0 or environment[i].T[j-1] == 1 or initial_genes[i][j-1] == 'R'):
-					possible_vals.remove('L')
-				if(j == len(environment[0].T)-1 or environment[i].T[j+1] == 1):
-					possible_vals.remove('R')
+	while len(cur_gen) <pop_size:
+		robot_list = []
+		for robot_index in range(num_robots):
+			flow_field = np.array(np.random.choice(['0'], size = (8,8), p = [1]))
+			for i in range(len(environment)):
+				for j in range(len(environment[0].T)):
+					possible_vals = ['U', 'D', 'L', 'R']
+					if(i == 0 or environment[i-1].T[j] == 1 or initial_genes[i-1][j] == 'D'):
+						possible_vals.remove('U')
+					if(i == len(environment)-1 or environment[i+1].T[j] == 1):
+						possible_vals.remove('D')
+					if(j == 0 or environment[i].T[j-1] == 1 or initial_genes[i][j-1] == 'R'):
+						possible_vals.remove('L')
+					if(j == len(environment[0].T)-1 or environment[i].T[j+1] == 1):
+						possible_vals.remove('R')
 
 
-				if(len(possible_vals) > 0):
-					prob = 1.0/(len(possible_vals))
-					initial_genes[i][j] = np.random.choice(possible_vals, p = [prob]*len(possible_vals))
-				else:
-					initial_genes[i][j] = np.random.choice(['R', 'L', 'D', 'U'], p = [0.25,0.25,0.25,0.25])
-		cur_gen.append(Individual(initial_genes))
+					if(len(possible_vals) > 0):
+						prob = 1.0/(len(possible_vals))
+						flow_field[i][j] = np.random.choice(possible_vals, p = [prob]*len(possible_vals))
+					else:
+						flow_field[i][j] = np.random.choice(['R', 'L', 'D', 'U'], p = [0.25,0.25,0.25,0.25])
+			robot_list.append(Robot(flow_field=flow_field, state=robot_start_locations[robot_index], target=robot_target_locations[robot_index]))
+		cur_gen.append(Individual(robot_list))
 	return cur_gen
 
 def initialise(environment, pop_size, num_robots):
+	robot_start_locations = [(0,0)]
+	robot_target_locations = [(7,7)]
 	cur_gen = []
 	for i in range(pop_size):
-		initial_tr = np.array(np.random.choice(['R', 'L', 'D', 'U'], size = (8,8), p = [0.25,0.25,0.25,0.25]))
-		initial_tr[np.where(environment == 1)] = 'X'
-		individual = Individual(initial_tr)
-		cur_gen.append(individual)
+		robot_list = []
+		for robot_index in range (num_robots):
+			initial_tr = np.array(np.random.choice(['R', 'L', 'D', 'U'], size = (8,8), p = [0.25,0.25,0.25,0.25]))
+			initial_tr[np.where(environment == 1)] = 'X'
+			robot_list.append(Robot(flow_field=initial_tr, state=robot_start_locations[robot_index], target=robot_target_locations[robot_index]))
+		cur_gen.append(Individual(robot_list))
 	return cur_gen
 
 def distance(initial, final):
@@ -87,20 +95,21 @@ def calculate_fitness(cur_gen, environment):
 
 
 	for individual in cur_gen:
-		individual.fitness += betterness_coefficient*(distance(individual.path[0],individual.target) - distance(individual.path[len(individual.path) - 1],individual.target))
-		individual.fitness -= path_length_coefficient*len(individual.path) 
-		if(environment[individual.path[len(individual.path) - 1]]):
-			individual.fitness = individual.fitness/collision_coefficient
-		if(individual.target in individual.path):
-			individual.fitness = individual.fitness*target_coefficient
-			if temp==0:
-				print "Computed .... Improving now"
-				temp = 1
-		if(individual.path[len(individual.path)-1][0] >= len(environment) or individual.path[len(individual.path)-1][1] >= len(environment[0].T) or individual.path[len(individual.path)-1][0] < 0 or individual.path[len(individual.path)-1][1] < 0):
-			individual.fitness = individual.fitness/collision_coefficient
+		for robot in individual.robots:
+			individual.fitness += betterness_coefficient*(distance(robot.path[0],robot.target) - distance(robot.path[len(robot.path) - 1],robot.target))
+			individual.fitness -= path_length_coefficient*len(robot.path) 
+			if(environment[robot.path[len(robot.path) - 1]]):
+				individual.fitness = individual.fitness/collision_coefficient
+			if(robot.target in robot.path):
+				individual.fitness = individual.fitness*target_coefficient
+				if temp==0:
+					print "Computed .... Improving now"
+					temp = 1
+			if(robot.path[len(robot.path)-1][0] >= len(environment) or robot.path[len(robot.path)-1][1] >= len(robot[0].T) or robot.path[len(robot.path)-1][0] < 0 or robot.path[len(robot.path)-1][1] < 0):
+				individual.fitness = individual.fitness/collision_coefficient
 
 		# print individual.fitness
-		individual.fitness += exploration_coefficient*len(set(individual.path))
+		# individual.fitness += exploration_coefficient*len(set(individual.path))
 		if(individual.fitness < 0):
 			individual.fitness = 0
 
@@ -149,7 +158,7 @@ def mating(cur_gen, environment):
 
 def main():
 
-	n_generations = 30
+	n_generations = 2
 
 	environment = np.matrix([[0,0,1,1,0,0,0,0],
 							 [0,0,1,1,0,0,0,0],
@@ -170,12 +179,18 @@ def main():
 							 [0,0,0,0,0,1,0,0]])
 
 	robot0 = Robot(state = (0,0),target = (7,7))
-	robot0 = Robot(state = (0,2),target = (6,6))
-	robot0 = Robot(state = (1,7),target = (7,0))
+	robot1 = Robot(state = (0,2),target = (6,6))
+	robot2 = Robot(state = (1,7),target = (7,0))
 	# print environment[2].T[5]
 
-	# cur_gen = smart_initialise(environment, 300)
-	# print cur_gen[0].genes
+	cur_gen = smart_initialise(environment, 300)
+	print cur_gen[0].genes
+	for gen_index in range(n_generations):
+		print gen_index
+		
+
+
+
 	# for gen_index in range(n_generations):
 	# 	print gen_index
 	# 	# print cur_gen[gen_index].fitness
